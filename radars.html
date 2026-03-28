@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>R.A.D.A.R.S Check-in</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <!-- QR Code generator (admin side) -->
+  <!-- QR Code generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- html5-qrcode — best mobile camera QR scanner -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- ZXing for camera QR scanning -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.18.6/index.min.js"></script>
   <style>
     :root {
       --gold: #FFD700;
@@ -182,15 +182,38 @@
 
     /* ── QR Scanner ── */
     .scanner-wrap {
-      width: 100%; border-radius: 14px; overflow: hidden;
+      width: 260px; height: 260px; position: relative; border-radius: 14px; overflow: hidden;
       border: 2px solid var(--gold); box-shadow: 0 0 24px rgba(255,215,0,0.25);
-      margin-bottom: 18px; background: #000;
+      margin-bottom: 18px; background: #000; flex-shrink: 0;
     }
 
-    /* Override html5-qrcode internals */
-    #qr-video-container { width: 100% !important; }
-    #qr-video-container video { width: 100% !important; border-radius: 12px; display: block; }
-    #qr-video-container img { display: none !important; }
+    #qr-video { width: 100%; height: 100%; display: block; border-radius: 12px; object-fit: cover; }
+
+    .scanner-overlay {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .scanner-corner {
+      position: absolute; width: 40px; height: 40px; border-color: var(--gold); border-style: solid;
+    }
+    .scanner-corner.tl { top: 10px; left: 10px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .scanner-corner.tr { top: 10px; right: 10px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .scanner-corner.bl { bottom: 10px; left: 10px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .scanner-corner.br { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+    .scanner-line {
+      position: absolute; left: 14px; right: 14px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      animation: scanLine 2s ease-in-out infinite;
+    }
+
+    @keyframes scanLine {
+      0%   { top: 14px; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 14px); opacity: 0; }
+    }
 
     .scan-status {
       font-size: 0.85rem; color: var(--muted); text-align: center;
@@ -334,7 +357,7 @@
       <div class="screen-title">Scan QR Code</div>
       <div class="screen-sub">Point your camera at the meeting QR code.</div>
       <div class="scanner-wrap">
-        <div id="qr-video-container" style="width:100%;"></div>
+        <video id="qr-video" playsinline muted></video>
         <div class="scanner-overlay">
           <div class="scanner-corner tl"></div>
           <div class="scanner-corner tr"></div>
@@ -549,6 +572,13 @@
   }
 
   // ── QR Scanner ──
+  function startScan() {
+    showScreen('screen-scan');
+    document.getElementById('proceed-btn').style.display = 'none';
+    setStatus('Requesting camera permission…', '');
+    requestCameraAndScan();
+  }
+
   function setStatus(msg, type) {
     const el = document.getElementById('scan-status');
     el.textContent = msg;
@@ -559,98 +589,14 @@
     document.getElementById('proceed-btn').style.display = 'block';
   }
 
-  function startScan() {
-    showScreen('screen-scan');
-    document.getElementById('proceed-btn').style.display = 'none';
-    // Clear out any leftover html5-qrcode DOM from previous session
-    document.getElementById('qr-video-container').innerHTML = '';
-    setStatus('Starting camera…', '');
-    setTimeout(requestCameraAndScan, 300); // small delay lets the screen render first
-  }
-
-  async function requestCameraAndScan() {
-    if (!window.isSecureContext) {
-      setStatus('⚠️ Camera requires HTTPS. Use PIN below.', 'error');
-      showProceedBtn(); return;
-    }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('⚠️ Camera not supported here. Use PIN below.', 'error');
-      showProceedBtn(); return;
-    }
-    if (typeof Html5Qrcode === 'undefined') {
-      setStatus('⚠️ Scanner library failed to load. Use PIN below.', 'error');
-      showProceedBtn(); return;
-    }
-
-    // Explicitly request permission first so the prompt appears
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }
-      });
-      // Stop immediately — html5-qrcode will open its own stream
-      stream.getTracks().forEach(t => t.stop());
-    } catch (err) {
-      const msg = err.name === 'NotAllowedError'
-        ? '❌ Camera permission denied. Use PIN below.'
-        : '❌ Camera unavailable. Use PIN below.';
-      setStatus(msg, 'error');
-      showProceedBtn(); return;
-    }
-
-    setStatus('📷 Point camera at QR code…', '');
-    scanActive = true;
-
-    try {
-      codeReader = new Html5Qrcode('qr-video-container');
-      await codeReader.start(
-        { facingMode: 'environment' },
-        { fps: 15, qrbox: { width: 230, height: 230 }, aspectRatio: 1.0 },
-        (decodedText) => {
-          if (!scanActive) return;
-          scanActive = false;
-          setStatus('✅ Scanned! Loading…', 'ok');
-          stopScan().then(() => {
-            setTimeout(() => showScreen('screen2'), 400);
-          });
-        },
-        (_err) => { /* per-frame errors are normal — ignore */ }
-      );
-    } catch (err) {
-      setStatus('❌ Could not start camera. Use PIN below.', 'error');
-      showProceedBtn();
-    }
-  }
-
-  async function stopScan() {
-    scanActive = false;
-    if (codeReader) {
-      try {
-        if (codeReader.isScanning) await codeReader.stop();
-        codeReader.clear();
-      } catch(e) {}
-      codeReader = null;
-    }
-    // Belt-and-suspenders: kill any stray video tracks
-    if (navigator.mediaDevices) {
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({ video: true });
-        s.getTracks().forEach(t => t.stop());
-      } catch(_) {}
-    }
-  }
-
-  function stopScanAndGoBack() {
-    stopScan().then(() => showScreen('screen1'));
-  }
-
-  // ── PIN ──
   function proceedManually() {
-    stopScan().then(() => {
-      document.querySelectorAll('.pin-digit').forEach(i => { i.value = ''; i.classList.remove('filled'); });
-      document.getElementById('pin-error').textContent = '';
-      showScreen('screen-pin');
-      setTimeout(() => document.querySelectorAll('.pin-digit')[0].focus(), 250);
-    });
+    stopScan();
+    // Clear PIN inputs
+    document.querySelectorAll('.pin-digit').forEach(i => { i.value = ''; i.classList.remove('filled'); });
+    document.getElementById('pin-error').textContent = '';
+    showScreen('screen-pin');
+    // Focus first box
+    setTimeout(() => document.querySelectorAll('.pin-digit')[0].focus(), 200);
   }
 
   function submitPIN() {
@@ -661,19 +607,20 @@
       return;
     }
     if (!currentPIN) {
-      document.getElementById('pin-error').textContent = 'No PIN set by admin yet.';
+      document.getElementById('pin-error').textContent = 'No PIN has been set by the admin yet.';
       return;
     }
     if (entered === currentPIN) {
       document.getElementById('pin-error').textContent = '';
       showScreen('screen2');
     } else {
-      document.getElementById('pin-error').textContent = '❌ Incorrect PIN — try again.';
+      document.getElementById('pin-error').textContent = '❌ Incorrect PIN. Please try again.';
       digits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
       digits[0].focus();
     }
   }
 
+  // Auto-advance between PIN boxes
   function initPINInputs() {
     const digits = [...document.querySelectorAll('.pin-digit')];
     digits.forEach((input, i) => {
@@ -695,6 +642,95 @@
         if (e.key === 'Enter') submitPIN();
       });
     });
+  }
+
+  async function requestCameraAndScan() {
+    // Check if we're on a secure context (HTTPS or localhost)
+    if (!window.isSecureContext) {
+      setStatus('⚠️ Camera requires HTTPS. Use the button below to continue.', 'error');
+      showProceedBtn();
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('⚠️ Camera not supported in this browser. Use the button below.', 'error');
+      showProceedBtn();
+      return;
+    }
+
+    // Step 1: explicitly request permission
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }
+      });
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setStatus('❌ Camera permission denied. Allow access in browser settings, or use the button below.', 'error');
+      } else {
+        setStatus('❌ Camera unavailable. Use the button below to continue.', 'error');
+      }
+      showProceedBtn();
+      return;
+    }
+
+    // Stop permission-check stream — ZXing will open its own
+    stream.getTracks().forEach(t => t.stop());
+
+    if (typeof ZXing === 'undefined') {
+      setStatus('⚠️ Scanner failed to load. Use the button below.', 'error');
+      showProceedBtn();
+      return;
+    }
+
+    scanActive = true;
+    setStatus('📷 Camera active — point at the QR code and hold steady.', '');
+
+    try {
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
+
+      codeReader = new ZXing.BrowserQRCodeReader(hints);
+
+      const devices = await codeReader.listVideoInputDevices();
+      let deviceId = undefined;
+      if (devices && devices.length > 0) {
+        const back = devices.find(d => /back|rear|environment/i.test(d.label));
+        deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
+      }
+
+      await codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
+        if (!scanActive) return;
+        if (result && result.getText()) {
+          setStatus('✅ QR code scanned! Loading check-in…', 'ok');
+          scanActive = false;
+          setTimeout(() => { stopScan(); showScreen('screen2'); }, 800);
+        } else if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.warn('Scan error:', err);
+        }
+      });
+    } catch (err) {
+      setStatus('❌ Could not start scanner. Use the button below.', 'error');
+      showProceedBtn();
+    }
+  }
+
+  function stopScan() {
+    scanActive = false;
+    if (codeReader) {
+      try { codeReader.reset(); } catch(e) {}
+      codeReader = null;
+    }
+    const video = document.getElementById('qr-video');
+    if (video && video.srcObject) {
+      video.srcObject.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
+    }
+  }
+
+  function stopScanAndGoBack() {
+    stopScan();
+    showScreen('screen1');
   }
 
   // ── Check-in flow ──
@@ -804,14 +840,13 @@
   }
 
   function restart() {
-    stopScan().then(() => {
-      currentMember = {};
-      document.getElementById('name').value = '';
-      document.getElementById('nid').value = '';
-      document.getElementById('admin-pass').value = '';
-      document.querySelectorAll('input[name="year"]').forEach(r => r.checked = false);
-      showScreen('screen1');
-    });
+    stopScan();
+    currentMember = {};
+    document.getElementById('name').value = '';
+    document.getElementById('nid').value = '';
+    document.getElementById('admin-pass').value = '';
+    document.querySelectorAll('input[name="year"]').forEach(r => r.checked = false);
+    showScreen('screen1');
   }
 
   window.onload = () => {
