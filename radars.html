@@ -1,382 +1,592 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>R.A.D.A.R.S Check-in</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <!-- QR Code generator -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- ZXing for camera QR scanning -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.18.6/index.min.js"></script>
-  <style>
-    :root {
-      --gold: #FFD700;
-      --gold-dim: #c9a800;
-      --dark: #0a0a12;
-      --card: #13132a;
-      --border: rgba(255,215,0,0.18);
-      --text: #f0f0ff;
-      --muted: #8888aa;
-      --green: #00e5a0;
-      --red: #ff4d6d;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R.A.D.A.R.S · Check-In</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.18.6/index.min.js"></script>
+<style>
+/* ══════════════════════════════════════════════
+   DESIGN TOKENS — white / black / gold
+══════════════════════════════════════════════ */
+:root {
+  --gold:       #FFD700;
+  --gold-dark:  #E6B400;
+  --gold-soft:  #FFF3B0;
+  --black:      #111111;
+  --white:      #FFFFFF;
+  --page:       #F5F4EF;   /* warm off-white page bg */
+  --surface:    #FFFFFF;   /* card surface */
+  --border:     #E2E0D8;
+  --text:       #111111;
+  --sub:        #6B6B63;
+  --muted:      #A0A098;
+  --success:    #22C55E;
+  --danger:     #EF4444;
+  --scan-bg:    #000000;
+}
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
 
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--dark);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      overflow-x: hidden;
-    }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--page);
+  color: var(--text);
+  min-height: 100vh;
+}
 
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(100,80,255,0.18) 0%, transparent 70%),
-        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(255,215,0,0.08) 0%, transparent 60%);
-      pointer-events: none; z-index: 0;
-    }
+/* ══════════════════════════════════════════════
+   SHARED NAV — black bar, gold accents
+══════════════════════════════════════════════ */
+#app-nav {
+  position: fixed; top:0; left:0; right:0; height:56px;
+  background: var(--black);
+  display: flex; align-items: center; padding: 0 24px; gap: 0;
+  z-index: 200;
+  box-shadow: 0 1px 0 rgba(255,215,0,0.15);
+}
+.nav-logo { display:flex; align-items:center; gap:10px; margin-right:24px; }
+.nav-logo-icon {
+  width:34px; height:34px; background:var(--gold); border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:12px; font-weight:700; color:var(--black);
+}
+.nav-logo-text {
+  color:var(--white); font-family:'Orbitron',monospace;
+  font-size:13px; font-weight:700; letter-spacing:.1em;
+}
+.nav-tabs { display:flex; gap:2px; flex:1; }
+.nav-tab {
+  color: rgba(255,255,255,.5); font-size:14px; font-weight:500;
+  padding:7px 16px; border-radius:6px; cursor:pointer;
+  border:none; background:none; font-family:'DM Sans',sans-serif;
+  transition:all .15s;
+}
+.nav-tab:hover { color:var(--white); background:rgba(255,255,255,.08); }
+.nav-tab.active { color:var(--gold); font-weight:700; }
+.nav-tab.active-ul { color:var(--gold); font-weight:700; border-bottom:2px solid var(--gold); border-radius:0; }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-live {
+  display:flex; align-items:center; gap:6px;
+  background:rgba(34,197,94,.15); border:1px solid rgba(34,197,94,.3);
+  border-radius:20px; padding:4px 12px;
+  font-size:11px; color:var(--success); font-weight:700;
+}
+.nav-live-dot { width:6px; height:6px; background:var(--success); border-radius:50%; animation:pulse 1.2s infinite; }
+.nav-back {
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+  border-radius:8px; color:rgba(255,255,255,.7); font-size:12px;
+  padding:5px 14px; cursor:pointer; font-family:'DM Sans',sans-serif;
+  transition:all .15s;
+}
+.nav-back:hover { background:rgba(255,255,255,.18); color:var(--white); }
 
-    body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,215,0,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,215,0,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none; z-index: 0;
-    }
+/* ══════════════════════════════════════════════
+   CHECK-IN SCREENS
+══════════════════════════════════════════════ */
+#checkin-wrap {
+  display:flex; flex-direction:column; align-items:center;
+  width:100%; max-width:460px; margin:0 auto;
+  padding:80px 20px 60px;
+}
 
-    header {
-      position: fixed; top: 0; left: 0; right: 0; height: 58px;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(10,10,18,0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      z-index: 100;
-    }
+.screen {
+  display:none; flex-direction:column; align-items:center; width:100%;
+  animation:slideUp .35s cubic-bezier(.22,.85,.36,1) both;
+}
+.screen.active { display:flex; }
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(24px); }
+  to   { opacity:1; transform:translateY(0); }
+}
 
-    header h1 {
-      font-family: 'Orbitron', monospace;
-      font-size: 1rem; font-weight: 700;
-      letter-spacing: 0.25em; color: var(--gold); text-transform: uppercase;
-    }
+/* ── card ── */
+.ci-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:36px 32px;
+  width:100%;
+  display:flex; flex-direction:column; align-items:center;
+  box-shadow:0 4px 24px rgba(0,0,0,.08), 0 1px 0 rgba(0,0,0,.04);
+  position:relative; overflow:hidden;
+}
+.ci-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, transparent, var(--gold), transparent);
+}
 
-    #app {
-      position: relative; z-index: 1;
-      width: 100%; max-width: 460px;
-      padding: 88px 16px 60px;
-      display: flex; flex-direction: column; align-items: center;
-    }
+.ci-badge {
+  font-family:'Orbitron',monospace; font-size:.6rem;
+  letter-spacing:.2em; color:var(--black);
+  background:var(--gold); border-radius:20px;
+  padding:5px 14px; margin-bottom:18px; text-transform:uppercase;
+  font-weight:700;
+}
+.ci-title {
+  font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:900;
+  color:var(--black); margin-bottom:8px; text-align:center; line-height:1.2;
+}
+.ci-sub { font-size:.9rem; color:var(--sub); margin-bottom:28px; text-align:center; }
 
-    .screen {
-      display: none; flex-direction: column; align-items: center; width: 100%;
-      animation: slideUp 0.38s cubic-bezier(.22,.85,.36,1) both;
-    }
-    .screen.active { display: flex; }
+/* ── inputs ── */
+.input-wrap { width:100%; margin-bottom:14px; }
+.input-wrap label {
+  display:block; font-size:.72rem; font-weight:700;
+  letter-spacing:.08em; color:var(--sub); text-transform:uppercase; margin-bottom:7px;
+}
+.ci-input {
+  width:100%; padding:13px 16px;
+  background:var(--page); border:1.5px solid var(--border);
+  border-radius:12px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:1rem; outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+.ci-input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(255,215,0,.15); }
+.ci-input::placeholder { color:var(--muted); }
 
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(28px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+/* ── buttons ── */
+.btn {
+  width:100%; padding:14px 20px; border:none; border-radius:12px;
+  font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700;
+  cursor:pointer; transition:transform .15s, box-shadow .15s;
+  letter-spacing:.02em; margin-top:10px;
+}
+.btn:hover { transform:translateY(-1px); }
+.btn:active { transform:translateY(0); }
 
-    .card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
-      padding: 36px 28px; width: 100%;
-      display: flex; flex-direction: column; align-items: center;
-      box-shadow: 0 0 40px rgba(100,80,255,0.1), 0 20px 60px rgba(0,0,0,0.5);
-      position: relative; overflow: hidden;
-    }
+.btn-gold {
+  background:var(--gold); color:var(--black);
+  box-shadow:0 4px 16px rgba(255,215,0,.35);
+}
+.btn-gold:hover { background:var(--gold-dark); box-shadow:0 6px 20px rgba(255,215,0,.4); }
 
-    .card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-    }
+.btn-outline {
+  background:var(--white); color:var(--black);
+  border:1.5px solid var(--border);
+}
+.btn-outline:hover { border-color:var(--gold); }
 
-    .badge {
-      font-family: 'Orbitron', monospace; font-size: 0.62rem;
-      letter-spacing: 0.2em; color: var(--gold);
-      background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3);
-      border-radius: 20px; padding: 5px 14px; margin-bottom: 18px; text-transform: uppercase;
-    }
+.btn-ghost {
+  background:transparent; color:var(--sub);
+  border:1.5px solid var(--border); font-weight:500;
+}
+.btn-ghost:hover { color:var(--black); border-color:var(--black); }
 
-    .screen-title {
-      font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 900;
-      color: var(--text); margin-bottom: 8px; text-align: center; line-height: 1.2;
-    }
+.btn-admin {
+  background:transparent; color:var(--sub);
+  border:1px solid var(--border); font-size:.85rem;
+  padding:11px 20px; margin-top:14px; font-weight:500;
+}
+.btn-admin:hover { color:var(--black); border-color:var(--gold); background:var(--gold-soft); }
 
-    .screen-sub { font-size: 0.9rem; color: var(--muted); margin-bottom: 28px; text-align: center; }
+/* ── yes/no ── */
+.yes-no { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; margin-top:10px; }
+.btn-yes {
+  background:#EDFAF3; border:1.5px solid #86efac; color:#166534;
+  font-size:1.05rem; padding:18px; font-weight:700;
+}
+.btn-yes:hover { background:#D1FAE5; }
+.btn-no {
+  background:#FEF2F2; border:1.5px solid #fca5a5; color:#991b1b;
+  font-size:1.05rem; padding:18px; font-weight:700;
+}
+.btn-no:hover { background:#FEE2E2; }
 
-    .input-wrap { width: 100%; margin-bottom: 14px; }
+/* ── year grid ── */
+.year-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; margin:10px 0 20px; }
+.year-grid input[type="radio"] { display:none; }
+.year-grid label {
+  display:flex; align-items:center; justify-content:center;
+  padding:15px 12px; border-radius:12px;
+  background:var(--page); border:1.5px solid var(--border);
+  cursor:pointer; font-size:.95rem; font-weight:600;
+  transition:all .18s; color:var(--sub);
+}
+.year-grid input[type="radio"]:checked + label {
+  background:var(--gold); border-color:var(--gold);
+  color:var(--black); box-shadow:0 4px 12px rgba(255,215,0,.3);
+}
+.year-grid label:hover { border-color:var(--gold); color:var(--black); }
 
-    .input-wrap label {
-      display: block; font-size: 0.75rem; font-weight: 600;
-      letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; margin-bottom: 7px;
-    }
+/* ── scanner ── */
+.scanner-wrap {
+  width:260px; height:260px; position:relative;
+  border-radius:16px; overflow:hidden;
+  border:3px solid var(--gold);
+  box-shadow:0 0 0 6px rgba(255,215,0,.1), 0 8px 32px rgba(0,0,0,.2);
+  margin-bottom:18px; background:var(--scan-bg); flex-shrink:0;
+}
+#qr-video { width:100%; height:100%; display:block; object-fit:cover; }
+.scanner-overlay { position:absolute; inset:0; pointer-events:none; }
+.sc { position:absolute; width:36px; height:36px; border-color:var(--gold); border-style:solid; }
+.sc.tl { top:10px;left:10px;border-width:3px 0 0 3px;border-radius:4px 0 0 0; }
+.sc.tr { top:10px;right:10px;border-width:3px 3px 0 0;border-radius:0 4px 0 0; }
+.sc.bl { bottom:10px;left:10px;border-width:0 0 3px 3px;border-radius:0 0 0 4px; }
+.sc.br { bottom:10px;right:10px;border-width:0 3px 3px 0;border-radius:0 0 4px 0; }
+.scan-line {
+  position:absolute; left:12px; right:12px; height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  animation:scanLine 2s ease-in-out infinite;
+}
+@keyframes scanLine {
+  0%{top:12px;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:calc(100% - 12px);opacity:0}
+}
+.scan-status { font-size:.85rem; color:var(--sub); text-align:center; margin-bottom:10px; min-height:20px; }
+.scan-status.error { color:var(--danger); }
+.scan-status.ok    { color:var(--success); }
 
-    input[type="text"], input[type="password"] {
-      width: 100%; padding: 14px 16px;
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px; color: var(--text);
-      font-family: 'DM Sans', sans-serif; font-size: 1rem; outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
+/* ── success ── */
+.success-icon { font-size:4rem; margin:10px 0; animation:pop .5s cubic-bezier(.22,.85,.36,1) both; }
+@keyframes pop { from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1} }
+.success-title { font-family:'Orbitron',monospace; font-size:1.2rem; color:var(--success); margin-bottom:8px; text-align:center; }
+.success-sub { color:var(--sub); font-size:.9rem; margin-bottom:20px; text-align:center; }
+.cloud-wrap { display:flex; gap:10px; align-items:flex-end; justify-content:center; margin:4px 0 20px; }
+.cloud { display:inline-block; animation:floatCloud 3s ease-in-out infinite; }
+.cloud:nth-child(1){animation-delay:0s;font-size:2rem}
+.cloud:nth-child(2){animation-delay:.4s;font-size:3rem}
+.cloud:nth-child(3){animation-delay:.8s;font-size:2.2rem}
+@keyframes floatCloud{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
 
-    input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,215,0,0.12); }
-    input::placeholder { color: var(--muted); }
+/* ── steps ── */
+.steps { display:flex; gap:6px; margin-bottom:22px; }
+.step-dot { width:6px; height:6px; border-radius:50%; background:var(--border); transition:all .2s; }
+.step-dot.active { background:var(--gold); width:20px; border-radius:3px; }
+.step-dot.done   { background:var(--success); }
 
-    .btn {
-      width: 100%; padding: 15px 20px; border: none; border-radius: 12px;
-      font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600;
-      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-      letter-spacing: 0.03em; margin-top: 10px;
-    }
-    .btn:hover { transform: translateY(-2px); opacity: 0.92; }
-    .btn:active { transform: translateY(0); }
+/* ── PIN ── */
+.pin-inputs { display:flex; gap:10px; justify-content:center; margin:8px 0 6px; }
+.pin-digit {
+  width:52px!important; height:58px; text-align:center;
+  font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:700;
+  background:var(--page)!important; border:2px solid var(--border)!important;
+  border-radius:12px!important; color:var(--black)!important;
+  padding:0!important; text-transform:uppercase; caret-color:var(--gold);
+  transition:border-color .2s, box-shadow .2s;
+}
+.pin-digit:focus { border-color:var(--gold)!important; box-shadow:0 0 0 3px rgba(255,215,0,.2)!important; outline:none; }
+.pin-digit.filled { border-color:var(--gold)!important; }
+.pin-error { font-size:.85rem; color:var(--danger); min-height:20px; text-align:center; margin-bottom:4px; }
 
-    .btn-primary {
-      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
-      color: #0a0a12; box-shadow: 0 4px 20px rgba(255,215,0,0.3);
-    }
-    .btn-secondary {
-      background: rgba(255,255,255,0.07); color: var(--text);
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-    .btn-admin {
-      background: transparent; color: var(--muted);
-      border: 1px solid rgba(255,255,255,0.08); font-size: 0.85rem; padding: 11px 20px; margin-top: 14px;
-    }
-    .btn-admin:hover { color: var(--gold); border-color: rgba(255,215,0,0.3); }
-    .btn-danger {
-      background: rgba(255,77,109,0.12); border: 1px solid rgba(255,77,109,0.3); color: var(--red);
-    }
-    .btn-danger:hover { background: rgba(255,77,109,0.22); }
+/* ══════════════════════════════════════════════
+   DASHBOARD PAGES
+══════════════════════════════════════════════ */
+#dashboard-wrap { display:none; width:100%; min-height:100vh; background:var(--page); }
+#dashboard-wrap.active { display:block; }
 
-    .yes-no { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 10px; }
-    .btn-yes { background: rgba(0,229,160,0.15); border: 1px solid rgba(0,229,160,0.35); color: var(--green); font-size: 1.1rem; padding: 18px; }
-    .btn-yes:hover { background: rgba(0,229,160,0.25); }
-    .btn-no  { background: rgba(255,77,109,0.15); border: 1px solid rgba(255,77,109,0.35); color: var(--red); font-size: 1.1rem; padding: 18px; }
-    .btn-no:hover  { background: rgba(255,77,109,0.25); }
+.dpage { display:none; padding:76px 28px 48px; max-width:1280px; margin:0 auto; }
+.dpage.active { display:block; }
+.dpage-title { font-size:22px; font-weight:700; color:var(--black); margin-bottom:4px; }
+.dpage-sub { font-size:13px; color:var(--sub); margin-bottom:28px; }
+.dsec { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:14px; }
 
-    .year-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin: 10px 0 20px; }
-    .year-grid input[type="radio"] { display: none; }
-    .year-grid label {
-      display: flex; align-items: center; justify-content: center;
-      padding: 16px 12px; border-radius: 12px;
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      cursor: pointer; font-size: 0.95rem; font-weight: 500;
-      transition: all 0.18s; color: var(--muted);
-    }
-    .year-grid input[type="radio"]:checked + label {
-      background: rgba(255,215,0,0.12); border-color: var(--gold); color: var(--gold);
-      box-shadow: 0 0 16px rgba(255,215,0,0.15);
-    }
-    .year-grid label:hover { border-color: rgba(255,215,0,0.4); color: var(--text); }
+/* stat cards */
+.dstats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
+.dstat {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:22px 20px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.dstat.gold {
+  background:var(--gold); border-color:var(--gold);
+  cursor:pointer; transition:background .15s, box-shadow .15s;
+  box-shadow:0 4px 16px rgba(255,215,0,.3);
+}
+.dstat.gold:hover { background:var(--gold-dark); box-shadow:0 6px 20px rgba(255,215,0,.4); }
+.dstat-num { font-size:2rem; font-weight:700; color:var(--black); line-height:1; margin-bottom:4px; }
+.dstat-label { font-size:12px; color:var(--sub); font-weight:500; }
+.dstat.gold .dstat-label { color:rgba(0,0,0,.6); font-weight:700; }
 
-    /* ── QR Scanner ── */
-    .scanner-wrap {
-      width: 260px; height: 260px; position: relative; border-radius: 14px; overflow: hidden;
-      border: 2px solid var(--gold); box-shadow: 0 0 24px rgba(255,215,0,0.25);
-      margin-bottom: 18px; background: #000; flex-shrink: 0;
-    }
+/* event cards */
+.devents { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
+.devent {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:20px; cursor:pointer;
+  transition:box-shadow .15s, transform .15s;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.devent:hover { box-shadow:0 6px 24px rgba(0,0,0,.1); transform:translateY(-2px); }
+.dev-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10px; font-weight:700; padding:3px 10px;
+  border-radius:20px; margin-bottom:10px; text-transform:uppercase; letter-spacing:.05em;
+}
+.dev-live { background:rgba(34,197,94,.12); color:#166534; border:1px solid rgba(34,197,94,.25); }
+.dev-live::before { content:''; width:5px; height:5px; background:var(--success); border-radius:50%; animation:pulse 1.2s infinite; display:inline-block; }
+.dev-upcoming { background:rgba(255,215,0,.15); color:#92400E; border:1px solid rgba(255,215,0,.3); }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.dev-name { font-size:15px; font-weight:700; color:var(--black); margin-bottom:4px; }
+.dev-meta { font-size:12px; color:var(--sub); margin-bottom:14px; }
+.dev-bar { height:4px; background:var(--border); border-radius:4px; overflow:hidden; margin-bottom:8px; }
+.dev-fill { height:100%; background:var(--gold); border-radius:4px; }
+.dev-count { font-size:12px; color:var(--sub); }
 
-    #qr-video { width: 100%; height: 100%; display: block; border-radius: 12px; object-fit: cover; }
+/* quick actions */
+.dquick { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.daction {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:18px; display:flex; align-items:center; gap:14px;
+  cursor:pointer; transition:box-shadow .15s, transform .15s;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.daction:hover { box-shadow:0 6px 24px rgba(0,0,0,.1); transform:translateY(-2px); }
+.daction-icon {
+  width:42px; height:42px; background:var(--gold);
+  border-radius:10px; display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.daction-title { font-size:14px; font-weight:700; color:var(--black); }
+.daction-sub { font-size:12px; color:var(--sub); margin-top:2px; }
 
-    .scanner-overlay {
-      position: absolute; inset: 0; pointer-events: none;
-      display: flex; align-items: center; justify-content: center;
-    }
+/* create / QR page */
+.dcreate { display:grid; grid-template-columns:1fr 380px; gap:24px; }
+.dform-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:28px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.dform-card h2 { font-size:18px; font-weight:700; color:var(--black); margin-bottom:4px; }
+.dform-card p { font-size:13px; color:var(--sub); margin-bottom:24px; }
+.dform-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.dform-group { margin-bottom:16px; }
+.dform-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--sub); margin-bottom:7px; display:block; }
+.dform-input {
+  width:100%; border:1.5px solid var(--border); border-radius:10px;
+  padding:11px 14px; font-family:'DM Sans',sans-serif; font-size:14px;
+  color:var(--black); background:var(--page); outline:none; transition:border-color .15s;
+}
+.dform-input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(255,215,0,.15); }
+.dform-input::placeholder { color:var(--muted); }
+.dform-actions { display:flex; gap:12px; margin-top:8px; }
+.dbtn { border:none; border-radius:10px; padding:11px 22px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all .15s; }
+.dbtn-gold { background:var(--gold); color:var(--black); box-shadow:0 4px 14px rgba(255,215,0,.3); }
+.dbtn-gold:hover { background:var(--gold-dark); }
+.dbtn-outline { background:var(--white); color:var(--black); border:1.5px solid var(--border); }
+.dbtn-outline:hover { border-color:var(--gold); }
+.dbtn-danger { background:#FEF2F2; color:var(--danger); border:1.5px solid #FCA5A5; }
+.dbtn-danger:hover { background:#FEE2E2; }
+.dbtn-export { background:var(--white); color:var(--black); border:1.5px solid var(--border); }
+.dbtn-export:hover { border-color:var(--gold); color:var(--black); }
 
-    .scanner-corner {
-      position: absolute; width: 40px; height: 40px; border-color: var(--gold); border-style: solid;
-    }
-    .scanner-corner.tl { top: 10px; left: 10px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-    .scanner-corner.tr { top: 10px; right: 10px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-    .scanner-corner.bl { bottom: 10px; left: 10px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-    .scanner-corner.br { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+/* QR card */
+.dqr-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:28px; display:flex; flex-direction:column;
+  align-items:center; text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.dqr-card h3 { font-size:16px; font-weight:700; color:var(--black); margin-bottom:4px; }
+.dqr-card p { font-size:12px; color:var(--sub); margin-bottom:20px; }
+/* QR code box: black background so gold pixels pop */
+.dqr-box {
+  background:var(--black); border-radius:16px; padding:16px;
+  display:flex; align-items:center; justify-content:center;
+  width:196px; height:196px; margin:0 auto 16px;
+  box-shadow:0 4px 20px rgba(0,0,0,.2);
+}
+#dash-qr-output { width:164px; height:164px; display:flex; align-items:center; justify-content:center; }
+.dpin-box {
+  background:var(--gold); border-radius:12px;
+  padding:14px 20px; text-align:center; width:100%; margin-bottom:12px;
+}
+.dpin-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:rgba(0,0,0,.6); margin-bottom:6px; }
+.dpin-val { font-family:'Orbitron',monospace; font-size:1.8rem; font-weight:900; color:var(--black); letter-spacing:.3em; }
+.dpin-sub { font-size:11px; color:var(--sub); margin-top:8px; }
 
-    .scanner-line {
-      position: absolute; left: 14px; right: 14px; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-      animation: scanLine 2s ease-in-out infinite;
-    }
+/* attendance */
+.datt-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:12px; }
+.datt-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.dlive-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.25);
+  color:#166534; font-size:11px; font-weight:700;
+  padding:5px 12px; border-radius:20px;
+}
+.dlive-dot { width:6px; height:6px; background:var(--success); border-radius:50%; animation:pulse 1.2s infinite; display:inline-block; }
+.datt-meta { font-size:13px; color:var(--sub); margin-bottom:20px; }
 
-    @keyframes scanLine {
-      0%   { top: 14px; opacity: 0; }
-      10%  { opacity: 1; }
-      90%  { opacity: 1; }
-      100% { top: calc(100% - 14px); opacity: 0; }
-    }
+/* stat row */
+.datt-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
+.datt-stat {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:16px; text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.05);
+}
+.datt-stat:first-child { background:var(--gold); border-color:var(--gold); box-shadow:0 4px 14px rgba(255,215,0,.25); }
+.datt-stat-num { font-size:1.5rem; font-weight:700; color:var(--black); }
+.datt-stat-label { font-size:10px; color:var(--sub); margin-top:3px; text-transform:uppercase; letter-spacing:.05em; }
+.datt-stat:first-child .datt-stat-label { color:rgba(0,0,0,.55); }
 
-    .scan-status {
-      font-size: 0.85rem; color: var(--muted); text-align: center;
-      margin-bottom: 10px; min-height: 20px;
-    }
-    .scan-status.error { color: var(--red); }
-    .scan-status.ok    { color: var(--green); }
+/* live layout */
+.dlive-layout { display:grid; grid-template-columns:300px 1fr; gap:20px; }
+.dqr-live-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:24px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.dlive-label-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.25);
+  color:#166534; font-size:11px; font-weight:700;
+  padding:4px 12px; border-radius:20px; margin-bottom:14px;
+}
+.dqr-live-box {
+  background:var(--black); border-radius:14px; padding:14px;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:12px; min-height:196px;
+}
+#dlive-qr-img { width:164px; height:164px; border-radius:8px; display:none; }
+.dlive-pin-box {
+  background:var(--gold); border-radius:12px;
+  padding:12px 16px; text-align:center; margin-top:12px; margin-bottom:12px;
+}
+.dlast-checkin {
+  background:#F0FDF4; border:1px solid #BBF7D0;
+  border-radius:12px; padding:14px; margin-top:4px;
+}
+.dlast-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#166534; margin-bottom:6px; }
+.dlast-name { font-size:15px; font-weight:700; color:var(--black); }
+.dlast-meta { font-size:12px; color:var(--sub); margin-top:2px; }
 
-    /* ── Success ── */
-    .success-icon { font-size: 4rem; margin: 10px 0 10px; animation: pop 0.5s cubic-bezier(.22,.85,.36,1) both; }
-    @keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .success-title { font-family: 'Orbitron', monospace; font-size: 1.3rem; color: var(--green); margin-bottom: 8px; text-align: center; }
-    .success-sub { color: var(--muted); font-size: 0.95rem; margin-bottom: 20px; text-align: center; }
+/* table */
+.dsearch-filter { display:flex; gap:10px; margin-bottom:14px; }
+.dsearch-input {
+  flex:1; border:1.5px solid var(--border); border-radius:10px;
+  padding:10px 14px; font-family:'DM Sans',sans-serif; font-size:14px;
+  color:var(--black); background:var(--white); outline:none;
+}
+.dsearch-input:focus { border-color:var(--gold); }
+.dsearch-input::placeholder { color:var(--muted); }
+.datt-table {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.datt-thead {
+  display:grid; grid-template-columns:1.5fr 1fr .8fr .8fr .7fr;
+  padding:12px 18px; background:var(--page);
+  border-bottom:1px solid var(--border);
+}
+.datt-thead span { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); }
+.datt-row {
+  display:grid; grid-template-columns:1.5fr 1fr .8fr .8fr .7fr;
+  padding:13px 18px; border-bottom:1px solid var(--border);
+  align-items:center; transition:background .1s;
+}
+.datt-row:last-child { border-bottom:none; }
+.datt-row:hover { background:var(--page); }
+.datt-person { display:flex; align-items:center; gap:10px; }
+.datt-avatar {
+  width:32px; height:32px; border-radius:50%;
+  background:var(--gold); display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:var(--black); flex-shrink:0;
+}
+.datt-name { font-size:14px; font-weight:600; color:var(--black); }
+.datt-cell { font-size:13px; color:var(--sub); }
+.datt-mono { font-size:12px; color:var(--sub); font-family:'DM Mono',monospace; }
+.dtype-badge { display:inline-block; font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; }
+.dtype-ucf { background:rgba(255,215,0,.2); color:#92400E; border:1px solid rgba(255,215,0,.4); }
+.dtype-guest { background:var(--page); color:var(--sub); border:1px solid var(--border); }
+.dempty { padding:48px; text-align:center; color:var(--muted); font-size:14px; }
 
-    .cloud-wrap { display: flex; gap: 10px; align-items: flex-end; justify-content: center; margin: 4px 0 20px; }
-    .cloud { display: inline-block; animation: floatCloud 3s ease-in-out infinite; }
-    .cloud:nth-child(1) { animation-delay: 0s;   font-size: 2rem; }
-    .cloud:nth-child(2) { animation-delay: 0.4s; font-size: 3.2rem; }
-    .cloud:nth-child(3) { animation-delay: 0.8s; font-size: 2.2rem; }
-    @keyframes floatCloud { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+/* info box */
+.dinfo-box {
+  background:var(--gold-soft); border:1px solid rgba(255,215,0,.5);
+  border-radius:10px; padding:14px 16px; margin-top:20px;
+}
+.dinfo-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--black); margin-bottom:6px; }
+.dinfo-text { font-size:12px; color:var(--sub); line-height:1.6; }
 
-    /* ── Admin stats ── */
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin: 16px 0 8px; }
-    .stat-box { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 14px; padding: 18px 14px; text-align: center; }
-    .stat-box strong { font-family: 'Orbitron', monospace; font-size: 2rem; color: var(--gold); display: block; margin-bottom: 4px; }
-    .stat-box span { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-    .stat-box.full { grid-column: 1 / -1; }
+/* sync toast */
+.sync-toast {
+  position:fixed; bottom:24px; right:24px;
+  background:var(--black); color:var(--gold);
+  border:1px solid rgba(255,215,0,.3); border-radius:20px;
+  padding:10px 18px; font-size:13px; font-weight:600;
+  display:flex; align-items:center; gap:8px;
+  z-index:300; opacity:0; transition:opacity .3s; pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,0,0,.2);
+}
+.sync-toast.show { opacity:1; }
+.sync-dot { width:6px; height:6px; background:var(--gold); border-radius:50%; animation:pulse 1s infinite; }
 
-    /* ── QR Generator (admin) ── */
-    .qr-section { width: 100%; margin-top: 20px; }
-    .qr-section-title {
-      font-family: 'Orbitron', monospace; font-size: 0.75rem;
-      color: var(--gold); letter-spacing: 0.15em; text-transform: uppercase;
-      margin-bottom: 12px; text-align: center;
-    }
-    .qr-box {
-      background: white; border-radius: 14px; padding: 16px;
-      display: flex; align-items: center; justify-content: center;
-      width: 200px; height: 200px; margin: 0 auto 14px;
-      box-shadow: 0 0 30px rgba(255,215,0,0.2);
-    }
-    #qr-output { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-    .qr-url-display {
-      font-size: 0.72rem; color: var(--muted); text-align: center;
-      word-break: break-all; margin-bottom: 10px; padding: 0 4px;
-    }
-    .qr-url-display span { color: var(--gold); }
+.footer-label {
+  position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+  font-size:.65rem; letter-spacing:.15em; color:var(--muted);
+  text-transform:uppercase; white-space:nowrap; z-index:1;
+}
 
-    .divider { width: 100%; height: 1px; background: rgba(255,255,255,0.07); margin: 20px 0; }
-
-    .steps { display: flex; gap: 6px; margin-bottom: 22px; }
-    .step-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: background 0.2s, width 0.2s; }
-    .step-dot.active { background: var(--gold); width: 20px; border-radius: 3px; }
-    .step-dot.done   { background: var(--green); }
-
-    /* ── PIN Entry ── */
-    .pin-inputs {
-      display: flex; gap: 10px; justify-content: center;
-      margin: 8px 0 6px;
-    }
-
-    .pin-digit {
-      width: 52px !important; height: 60px;
-      text-align: center;
-      font-family: 'Orbitron', monospace;
-      font-size: 1.4rem; font-weight: 700;
-      background: rgba(255,255,255,0.06) !important;
-      border: 2px solid rgba(255,255,255,0.15) !important;
-      border-radius: 12px !important;
-      color: var(--gold) !important;
-      padding: 0 !important;
-      text-transform: uppercase;
-      caret-color: var(--gold);
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .pin-digit:focus {
-      border-color: var(--gold) !important;
-      box-shadow: 0 0 0 3px rgba(255,215,0,0.18) !important;
-      outline: none;
-    }
-
-    .pin-digit.filled { border-color: rgba(255,215,0,0.5) !important; }
-
-    .pin-error {
-      font-size: 0.85rem; color: var(--red); min-height: 20px;
-      text-align: center; margin-bottom: 4px;
-    }
-
-    /* ── Admin PIN display ── */
-    .pin-display-wrap {
-      text-align: center; margin: 14px 0 4px;
-    }
-
-    .pin-display-label {
-      font-family: 'Orbitron', monospace; font-size: 0.65rem;
-      letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px;
-    }
-
-    .pin-display {
-      font-family: 'Orbitron', monospace; font-size: 2rem; font-weight: 900;
-      letter-spacing: 0.35em; color: var(--gold);
-      background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25);
-      border-radius: 12px; padding: 12px 20px; display: inline-block;
-      box-shadow: 0 0 20px rgba(255,215,0,0.12);
-    }
-
-    .pin-display-sub {
-      font-size: 0.75rem; color: var(--muted); margin-top: 7px;
-    }
-
-    .footer-label {
-      position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-      font-size: 0.68rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.13);
-      text-transform: uppercase; white-space: nowrap; z-index: 1;
-    }
-  </style>
+@media(max-width:900px){
+  .dstats,.devents,.dquick { grid-template-columns:1fr 1fr; }
+  .dcreate,.dlive-layout { grid-template-columns:1fr; }
+  .datt-stats { grid-template-columns:repeat(3,1fr); }
+  .datt-thead,.datt-row { grid-template-columns:1.5fr 1fr .8fr .6fr; }
+  .datt-thead span:last-child,.datt-row>*:last-child { display:none; }
+}
+</style>
 </head>
 <body>
 
-<header>
-  <h1>R.A.D.A.R.S &nbsp;·&nbsp; Check-In</h1>
-</header>
+<!-- ══ SHARED NAV ══ -->
+<nav id="app-nav">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">CC</div>
+    <span class="nav-logo-text">R.A.D.A.R.S</span>
+  </div>
+  <!-- check-in nav -->
+  <div id="ci-nav-right" style="flex:1;display:flex;align-items:center;justify-content:flex-end">
+    <span style="color:rgba(255,255,255,.4);font-size:13px">UCF · Spring 2025</span>
+  </div>
+  <!-- dashboard nav tabs (hidden by default) -->
+  <div id="dash-nav-tabs" style="display:none;flex:1;gap:2px" class="nav-tabs">
+    <button class="nav-tab active" data-dp="ddash" onclick="showDPage('ddash',this)">Dashboard</button>
+    <button class="nav-tab" data-dp="dcreate" onclick="showDPage('dcreate',this)">QR &amp; PIN</button>
+    <button class="nav-tab" data-dp="dattendance" onclick="showDPage('dattendance',this)">Live Check-In</button>
+  </div>
+  <div id="dash-nav-right" style="display:none" class="nav-right">
+    <div class="nav-live"><span class="nav-live-dot"></span> Live Sync</div>
+    <button class="nav-back" onclick="exitDashboard()">← Exit</button>
+  </div>
+</nav>
 
-<div id="app">
+<!-- ══ CHECK-IN ══ -->
+<div id="checkin-wrap">
 
-  <!-- Welcome -->
   <div id="screen1" class="screen active">
-    <div class="card">
-      <div class="badge">UCF · Spring 2025</div>
-      <div class="screen-title">Welcome</div>
-      <div class="screen-sub">Scan the meeting QR code to begin your check-in.</div>
-      <button class="btn btn-primary" onclick="startScan()">Student Check-in</button>
+    <div class="ci-card">
+      <div class="ci-badge">UCF · Spring 2025</div>
+      <div class="ci-title">Welcome</div>
+      <div class="ci-sub">Scan the meeting QR code to begin your check-in.</div>
+      <button class="btn btn-gold" onclick="startScan()">📱 Student Check-In</button>
       <button class="btn btn-admin" onclick="showAdminLogin()">⚙ Admin Dashboard</button>
     </div>
   </div>
 
-  <!-- QR Scanner Screen -->
   <div id="screen-scan" class="screen">
-    <div class="card">
-      <div class="screen-title">Scan QR Code</div>
-      <div class="screen-sub">Point your camera at the meeting QR code.</div>
+    <div class="ci-card">
+      <div class="ci-title">Scan QR Code</div>
+      <div class="ci-sub">Point your camera at the meeting QR code.</div>
       <div class="scanner-wrap">
         <video id="qr-video" playsinline muted></video>
         <div class="scanner-overlay">
-          <div class="scanner-corner tl"></div>
-          <div class="scanner-corner tr"></div>
-          <div class="scanner-corner bl"></div>
-          <div class="scanner-corner br"></div>
-          <div class="scanner-line"></div>
+          <div class="sc tl"></div><div class="sc tr"></div>
+          <div class="sc bl"></div><div class="sc br"></div>
+          <div class="scan-line"></div>
         </div>
       </div>
       <div class="scan-status" id="scan-status">Initializing camera…</div>
-      <button class="btn btn-secondary" id="proceed-btn" style="display:none; margin-top:6px;" onclick="proceedManually()">🔢 Enter PIN Instead</button>
-      <button class="btn btn-secondary" onclick="stopScanAndGoBack()" style="margin-top:6px;">← Back</button>
+      <button class="btn btn-outline" id="proceed-btn" style="display:none;margin-top:6px" onclick="proceedManually()">🔢 Enter PIN Instead</button>
+      <button class="btn btn-ghost" onclick="stopScanAndGoBack()" style="margin-top:8px">← Back</button>
     </div>
   </div>
 
-  <!-- PIN Entry Screen -->
   <div id="screen-pin" class="screen">
-    <div class="card">
-      <div class="screen-title">Enter Meeting PIN</div>
-      <div class="screen-sub">Ask your meeting organiser for the 5-character PIN.</div>
+    <div class="ci-card">
+      <div class="ci-title">Enter Meeting PIN</div>
+      <div class="ci-sub">Ask your meeting organiser for the 5-character PIN.</div>
       <div class="pin-inputs" id="pin-inputs">
         <input class="pin-digit" type="text" maxlength="1" inputmode="text" autocomplete="off">
         <input class="pin-digit" type="text" maxlength="1" inputmode="text" autocomplete="off">
@@ -385,477 +595,568 @@
         <input class="pin-digit" type="text" maxlength="1" inputmode="text" autocomplete="off">
       </div>
       <div class="pin-error" id="pin-error"></div>
-      <button class="btn btn-primary" onclick="submitPIN()">Verify PIN →</button>
-      <button class="btn btn-secondary" onclick="showScreen('screen-scan')" style="margin-top:8px;">← Try Camera Again</button>
+      <button class="btn btn-gold" onclick="submitPIN()">Verify PIN →</button>
+      <button class="btn btn-ghost" onclick="showScreen('screen-scan')" style="margin-top:8px">← Try Camera</button>
     </div>
   </div>
 
-  <!-- UCF Student? -->
   <div id="screen2" class="screen">
-    <div class="card">
-      <div class="steps">
-        <div class="step-dot active"></div>
-        <div class="step-dot"></div>
-        <div class="step-dot"></div>
-        <div class="step-dot"></div>
-      </div>
-      <div class="screen-title">UCF Student?</div>
-      <div class="screen-sub">Are you currently enrolled at UCF?</div>
+    <div class="ci-card">
+      <div class="steps"><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+      <div class="ci-title">UCF Student?</div>
+      <div class="ci-sub">Are you currently enrolled at UCF?</div>
       <div class="yes-no">
         <button class="btn btn-yes" onclick="ucfYes()">✓ Yes</button>
-        <button class="btn btn-no" onclick="ucfNo()">✕ No</button>
+        <button class="btn btn-no"  onclick="ucfNo()">✕ No</button>
       </div>
     </div>
   </div>
 
-  <!-- Name -->
   <div id="screen3" class="screen">
-    <div class="card">
-      <div class="steps">
-        <div class="step-dot done"></div>
-        <div class="step-dot active"></div>
-        <div class="step-dot"></div>
-        <div class="step-dot"></div>
-      </div>
-      <div class="screen-title">Your Name</div>
-      <div class="screen-sub">Enter your full name as it appears on your ID.</div>
-      <div class="input-wrap">
-        <label>Full Name</label>
-        <input type="text" id="name" placeholder="First Last" autocomplete="name">
-      </div>
-      <button class="btn btn-primary" onclick="checkIfAlreadySignedIn()">Continue →</button>
+    <div class="ci-card">
+      <div class="steps"><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+      <div class="ci-title">Your Name</div>
+      <div class="ci-sub">Enter your full name as it appears on your ID.</div>
+      <div class="input-wrap"><label>Full Name</label><input class="ci-input" type="text" id="name" placeholder="First Last" autocomplete="name"></div>
+      <button class="btn btn-gold" onclick="checkAlreadySigned()">Continue →</button>
     </div>
   </div>
 
-  <!-- Already signed in -->
   <div id="already-signed" class="screen">
-    <div class="card">
+    <div class="ci-card">
       <div class="success-icon">👋</div>
-      <div class="success-title" style="color: var(--gold);">Already Signed In</div>
+      <div class="success-title" style="color:var(--gold)">Already Signed In</div>
       <div class="success-sub">You've already checked in today — enjoy the meeting!</div>
-      <button class="btn btn-secondary" onclick="restart()">Sign In Another Person</button>
+      <button class="btn btn-outline" onclick="restart()">Sign In Another Person</button>
     </div>
   </div>
 
-  <!-- Year -->
   <div id="screen4" class="screen">
-    <div class="card">
-      <div class="steps">
-        <div class="step-dot done"></div>
-        <div class="step-dot done"></div>
-        <div class="step-dot active"></div>
-        <div class="step-dot"></div>
-      </div>
-      <div class="screen-title">Academic Year</div>
-      <div class="screen-sub">Select your current standing.</div>
+    <div class="ci-card">
+      <div class="steps"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div></div>
+      <div class="ci-title">Academic Year</div>
+      <div class="ci-sub">Select your current standing.</div>
       <div class="year-grid">
-        <input type="radio" name="year" value="Freshman" id="y1">
-        <label for="y1">Freshman</label>
-        <input type="radio" name="year" value="Sophomore" id="y2">
-        <label for="y2">Sophomore</label>
-        <input type="radio" name="year" value="Junior" id="y3">
-        <label for="y3">Junior</label>
-        <input type="radio" name="year" value="Senior" id="y4">
-        <label for="y4">Senior</label>
+        <input type="radio" name="year" value="Freshman"  id="y1"><label for="y1">Freshman</label>
+        <input type="radio" name="year" value="Sophomore" id="y2"><label for="y2">Sophomore</label>
+        <input type="radio" name="year" value="Junior"    id="y3"><label for="y3">Junior</label>
+        <input type="radio" name="year" value="Senior"    id="y4"><label for="y4">Senior</label>
       </div>
-      <button class="btn btn-primary" onclick="nextToNID()">Continue →</button>
+      <button class="btn btn-gold" onclick="nextToNID()">Continue →</button>
     </div>
   </div>
 
-  <!-- NID -->
   <div id="screen5" class="screen">
-    <div class="card">
-      <div class="steps">
-        <div class="step-dot done"></div>
-        <div class="step-dot done"></div>
-        <div class="step-dot done"></div>
-        <div class="step-dot active"></div>
-      </div>
-      <div class="screen-title">Identification</div>
-      <div class="screen-sub">Enter your NID or club password to confirm.</div>
-      <div class="input-wrap">
-        <label>NID or Password</label>
-        <input type="text" id="nid" placeholder="e.g. ab123456">
-      </div>
-      <button class="btn btn-primary" onclick="submitCheckin()">Submit Check-in ✓</button>
+    <div class="ci-card">
+      <div class="steps"><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot done"></div><div class="step-dot active"></div></div>
+      <div class="ci-title">Identification</div>
+      <div class="ci-sub">Enter your NID or club password to confirm.</div>
+      <div class="input-wrap"><label>NID or Password</label><input class="ci-input" type="text" id="nid" placeholder="e.g. ab123456"></div>
+      <button class="btn btn-gold" onclick="submitCheckin()">Submit Check-In ✓</button>
     </div>
   </div>
 
-  <!-- Success -->
   <div id="success" class="screen">
-    <div class="card">
+    <div class="ci-card">
       <div class="success-icon">✅</div>
       <div class="success-title">You're Signed In!</div>
       <div class="success-sub">Thanks for coming — see you at the next meeting.</div>
-      <div class="cloud-wrap">
-        <span class="cloud">☁️</span>
-        <span class="cloud">☁️</span>
-        <span class="cloud">☁️</span>
-      </div>
-      <button class="btn btn-secondary" onclick="restart()">Sign In Another Person</button>
+      <div class="cloud-wrap"><span class="cloud">☁️</span><span class="cloud">☁️</span><span class="cloud">☁️</span></div>
+      <button class="btn btn-outline" onclick="restart()">Sign In Another Person</button>
     </div>
   </div>
 
-  <!-- Admin Login -->
   <div id="admin-login" class="screen">
-    <div class="card">
-      <div class="badge">Admin Access</div>
-      <div class="screen-title">Dashboard Login</div>
-      <div class="screen-sub">Enter your admin password to view attendance.</div>
-      <div class="input-wrap">
-        <label>Password</label>
-        <input type="password" id="admin-pass" placeholder="••••••••">
-      </div>
-      <button class="btn btn-primary" onclick="checkAdminPassword()">Login →</button>
-      <button class="btn btn-secondary" onclick="restart()" style="margin-top:10px;">← Back</button>
+    <div class="ci-card">
+      <div class="ci-badge">Admin Access</div>
+      <div class="ci-title">Dashboard Login</div>
+      <div class="ci-sub">Enter the admin password to access the manager dashboard.</div>
+      <div class="input-wrap"><label>Password</label><input class="ci-input" type="password" id="admin-pass" placeholder="••••••••"></div>
+      <button class="btn btn-gold" onclick="checkAdminPassword()">Login →</button>
+      <button class="btn btn-ghost" onclick="restart()" style="margin-top:10px">← Back</button>
     </div>
   </div>
 
-  <!-- Admin Dashboard -->
-  <div id="admin-dashboard" class="screen">
-    <div class="card">
-      <div class="badge">Meeting Attendance</div>
-      <div class="screen-title">Dashboard</div>
-      <div class="stats-grid" id="stats"></div>
+</div><!-- end checkin-wrap -->
 
-      <div class="divider"></div>
+<!-- ══ DASHBOARD ══ -->
+<div id="dashboard-wrap">
 
-      <!-- QR Generator -->
-      <div class="qr-section">
-        <div class="qr-section-title">📱 Meeting QR Code</div>
-        <div class="qr-box"><div id="qr-output"></div></div>
-        <div class="qr-url-display">Links to: <span id="qr-url-text"></span></div>
-        <div class="pin-display-wrap">
-          <div class="pin-display-label">Meeting PIN</div>
-          <div class="pin-display" id="admin-pin-display">—</div>
-          <div class="pin-display-sub">Share this if students can't scan the QR</div>
+  <!-- Dashboard -->
+  <div id="ddash" class="dpage active">
+    <div class="dpage-title">Dashboard</div>
+    <div class="dpage-sub">R.A.D.A.R.S · UCF · Real-time attendance overview</div>
+    <div class="dstats">
+      <div class="dstat"><div class="dstat-num" id="d-total">0</div><div class="dstat-label">Total Attended</div></div>
+      <div class="dstat"><div class="dstat-num" id="d-ucf">0</div><div class="dstat-label">UCF Students</div></div>
+      <div class="dstat"><div class="dstat-num" id="d-nonucf">0</div><div class="dstat-label">Non-UCF Guests</div></div>
+      <div class="dstat gold" onclick="showDPage('dcreate',document.querySelector('[data-dp=dcreate]'))">
+        <div class="dstat-num" style="font-size:2.4rem">+</div>
+        <div class="dstat-label">New QR / PIN</div>
+      </div>
+    </div>
+    <div class="dsec">Attendance by Year</div>
+    <div class="dstats" id="d-year-grid" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="dsec" style="margin-top:24px">Quick Actions</div>
+    <div class="dquick">
+      <div class="daction" onclick="showDPage('dattendance',document.querySelector('[data-dp=dattendance]'))">
+        <div class="daction-icon">📋</div>
+        <div><div class="daction-title">Live Attendance</div><div class="daction-sub">View &amp; search check-ins</div></div>
+      </div>
+      <div class="daction" onclick="dExportCSV()">
+        <div class="daction-icon">📤</div>
+        <div><div class="daction-title">Export CSV</div><div class="daction-sub">Download attendance data</div></div>
+      </div>
+      <div class="daction" onclick="dClearData()">
+        <div class="daction-icon">🗑</div>
+        <div><div class="daction-title">Clear All Data</div><div class="daction-sub">Reset attendance records</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR & PIN -->
+  <div id="dcreate" class="dpage">
+    <div class="dpage-title">QR Code &amp; PIN</div>
+    <div class="dpage-sub">Generate a new QR code and PIN for today's meeting.</div>
+    <div class="dcreate">
+      <div class="dform-card">
+        <h2>Meeting Details</h2>
+        <p>Optionally label this meeting, then generate a fresh QR and PIN for students.</p>
+        <div class="dform-group"><label class="dform-label">Meeting Name</label><input class="dform-input" id="d-ev-name" placeholder="e.g. Spring GBM #5"/></div>
+        <div class="dform-group"><label class="dform-label">Location</label><input class="dform-input" id="d-ev-loc" placeholder="e.g. ENG1 115"/></div>
+        <div class="dform-row">
+          <div class="dform-group"><label class="dform-label">Date</label><input class="dform-input" id="d-ev-date" type="date"/></div>
+          <div class="dform-group"><label class="dform-label">Expected Attendance</label><input class="dform-input" id="d-ev-cap" type="number" placeholder="e.g. 50"/></div>
         </div>
-        <button class="btn btn-primary" onclick="generateQR()" style="margin-top:12px;">↻ New QR &amp; PIN</button>
+        <div class="dform-actions">
+          <button class="dbtn dbtn-gold" onclick="dGenerateQR()">↻ Generate New QR &amp; PIN</button>
+        </div>
+        <div class="dinfo-box">
+          <div class="dinfo-title">💡 Cross-Device Sync</div>
+          <div class="dinfo-text">When a student submits their check-in form, their data saves to Firebase and this dashboard updates instantly. Open this page on your laptop as the manager, and share the same URL with students on their phones.</div>
+        </div>
       </div>
-
-      <div class="divider"></div>
-
-      <button class="btn btn-danger" onclick="clearData()">🗑 Clear All Data</button>
-      <button class="btn btn-secondary" onclick="restart()" style="margin-top:10px;">← Back to Check-in</button>
+      <div class="dqr-card">
+        <h3>QR Code</h3>
+        <p>Students scan this to begin check-in</p>
+        <div class="dqr-box"><div id="dash-qr-output"><span style="font-size:36px;opacity:.2">⊞</span></div></div>
+        <div class="dpin-box">
+          <div class="dpin-label">Meeting PIN</div>
+          <div class="dpin-val" id="dash-pin-display">—</div>
+        </div>
+        <div class="dpin-sub">Share PIN with students who can't scan</div>
+        <button class="dbtn dbtn-gold" style="width:100%;margin-top:14px" onclick="dGenerateQR()">↻ Regenerate</button>
+      </div>
     </div>
   </div>
 
-</div>
+  <!-- Live Attendance -->
+  <div id="dattendance" class="dpage">
+    <div class="datt-header">
+      <div>
+        <div class="dpage-title">Live Attendance</div>
+        <div class="datt-meta">Showing all check-ins · Updates in real time via Firebase</div>
+      </div>
+      <div class="datt-actions">
+        <div class="dlive-badge"><span class="dlive-dot"></span> Live</div>
+        <button class="dbtn dbtn-export" onclick="dExportCSV()">Export CSV</button>
+        <button class="dbtn dbtn-danger" onclick="dClearData()">Clear Data</button>
+      </div>
+    </div>
 
+    <div class="datt-stats">
+      <div class="datt-stat"><div class="datt-stat-num" id="d-att-total">0</div><div class="datt-stat-label">Total</div></div>
+      <div class="datt-stat"><div class="datt-stat-num" id="d-att-ucf">0</div><div class="datt-stat-label">UCF</div></div>
+      <div class="datt-stat"><div class="datt-stat-num" id="d-att-fresh">0</div><div class="datt-stat-label">Freshmen</div></div>
+      <div class="datt-stat"><div class="datt-stat-num" id="d-att-soph">0</div><div class="datt-stat-label">Sophomores</div></div>
+      <div class="datt-stat"><div class="datt-stat-num" id="d-att-upper">0</div><div class="datt-stat-label">Jr / Sr</div></div>
+    </div>
+
+    <div class="dlive-layout">
+      <div class="dqr-live-card">
+        <div class="dlive-label-badge"><span class="dlive-dot"></span> Check-in is LIVE</div>
+        <div class="dqr-live-box">
+          <img id="dlive-qr-img" src="" alt="QR" style="width:164px;height:164px;border-radius:8px;display:none"/>
+          <span id="dlive-placeholder" style="color:var(--muted);font-size:13px;text-align:center;line-height:1.6">Generate a QR in<br>the QR &amp; PIN tab</span>
+        </div>
+        <div class="dlive-pin-box">
+          <div class="dpin-label">Meeting PIN</div>
+          <div class="dpin-val" id="dlive-pin-display">—</div>
+        </div>
+        <div class="dlast-checkin">
+          <div class="dlast-label">Last Check-In</div>
+          <div class="dlast-name" id="d-last-name">—</div>
+          <div class="dlast-meta" id="d-last-meta">No check-ins yet</div>
+        </div>
+      </div>
+      <div>
+        <div class="dsearch-filter">
+          <input class="dsearch-input" placeholder="Search by name or NID..." oninput="dFilter(this.value)"/>
+        </div>
+        <div class="datt-table">
+          <div class="datt-thead">
+            <span>Name</span><span>NID</span><span>Year</span><span>Type</span><span>Time</span>
+          </div>
+          <div id="d-att-body"><div class="dempty">No check-ins yet. Share the QR code or PIN!</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end dashboard-wrap -->
+
+<div class="sync-toast" id="sync-toast">
+  <span class="sync-dot"></span> New check-in!
+</div>
 <div class="footer-label">R.A.D.A.R.S · UCF · Attendance System</div>
 
-<script>
-  const ADMIN_PASSWORD = "pass"; // ← Change before going live!
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getFirestore, collection, addDoc, onSnapshot, getDocs, query, orderBy, deleteDoc, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-  let currentMember = {};
-  let codeReader = null;
-  let scanActive = false;
-  let currentPIN = '';
-
-  // ── Generate a 5-char alphanumeric PIN ──
-  function generatePIN() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
-    let pin = '';
-    for (let i = 0; i < 5; i++) pin += chars[Math.floor(Math.random() * chars.length)];
-    return pin;
-  }
-
-  // ── Screen navigation ──
-  function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const el = document.getElementById(id);
-    el.classList.add('active');
-    el.style.animation = 'none';
-    el.offsetHeight;
-    el.style.animation = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // ── QR Scanner ──
-  function startScan() {
-    showScreen('screen-scan');
-    document.getElementById('proceed-btn').style.display = 'none';
-    setStatus('Requesting camera permission…', '');
-    requestCameraAndScan();
-  }
-
-  function setStatus(msg, type) {
-    const el = document.getElementById('scan-status');
-    el.textContent = msg;
-    el.className = 'scan-status' + (type ? ' ' + type : '');
-  }
-
-  function showProceedBtn() {
-    document.getElementById('proceed-btn').style.display = 'block';
-  }
-
-  function proceedManually() {
-    stopScan();
-    // Clear PIN inputs
-    document.querySelectorAll('.pin-digit').forEach(i => { i.value = ''; i.classList.remove('filled'); });
-    document.getElementById('pin-error').textContent = '';
-    showScreen('screen-pin');
-    // Focus first box
-    setTimeout(() => document.querySelectorAll('.pin-digit')[0].focus(), 200);
-  }
-
-  function submitPIN() {
-    const digits = [...document.querySelectorAll('.pin-digit')];
-    const entered = digits.map(d => d.value.toUpperCase()).join('');
-    if (entered.length < 5) {
-      document.getElementById('pin-error').textContent = 'Please fill in all 5 characters.';
-      return;
-    }
-    if (!currentPIN) {
-      document.getElementById('pin-error').textContent = 'No PIN has been set by the admin yet.';
-      return;
-    }
-    if (entered === currentPIN) {
-      document.getElementById('pin-error').textContent = '';
-      showScreen('screen2');
-    } else {
-      document.getElementById('pin-error').textContent = '❌ Incorrect PIN. Please try again.';
-      digits.forEach(d => { d.value = ''; d.classList.remove('filled'); });
-      digits[0].focus();
-    }
-  }
-
-  // Auto-advance between PIN boxes
-  function initPINInputs() {
-    const digits = [...document.querySelectorAll('.pin-digit')];
-    digits.forEach((input, i) => {
-      input.addEventListener('input', () => {
-        input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-1);
-        if (input.value) {
-          input.classList.add('filled');
-          if (i < digits.length - 1) digits[i + 1].focus();
-        } else {
-          input.classList.remove('filled');
-        }
-      });
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Backspace' && !input.value && i > 0) {
-          digits[i - 1].value = '';
-          digits[i - 1].classList.remove('filled');
-          digits[i - 1].focus();
-        }
-        if (e.key === 'Enter') submitPIN();
-      });
-    });
-  }
-
-  async function requestCameraAndScan() {
-    // Check if we're on a secure context (HTTPS or localhost)
-    if (!window.isSecureContext) {
-      setStatus('⚠️ Camera requires HTTPS. Use the button below to continue.', 'error');
-      showProceedBtn();
-      return;
-    }
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('⚠️ Camera not supported in this browser. Use the button below.', 'error');
-      showProceedBtn();
-      return;
-    }
-
-    // Step 1: explicitly request permission
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }
-      });
-    } catch (err) {
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setStatus('❌ Camera permission denied. Allow access in browser settings, or use the button below.', 'error');
-      } else {
-        setStatus('❌ Camera unavailable. Use the button below to continue.', 'error');
-      }
-      showProceedBtn();
-      return;
-    }
-
-    // Stop permission-check stream — ZXing will open its own
-    stream.getTracks().forEach(t => t.stop());
-
-    if (typeof ZXing === 'undefined') {
-      setStatus('⚠️ Scanner failed to load. Use the button below.', 'error');
-      showProceedBtn();
-      return;
-    }
-
-    scanActive = true;
-    setStatus('📷 Camera active — point at the QR code and hold steady.', '');
-
-    try {
-      const hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.QR_CODE]);
-
-      codeReader = new ZXing.BrowserQRCodeReader(hints);
-
-      const devices = await codeReader.listVideoInputDevices();
-      let deviceId = undefined;
-      if (devices && devices.length > 0) {
-        const back = devices.find(d => /back|rear|environment/i.test(d.label));
-        deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
-      }
-
-      await codeReader.decodeFromVideoDevice(deviceId, 'qr-video', (result, err) => {
-        if (!scanActive) return;
-        if (result && result.getText()) {
-          setStatus('✅ QR code scanned! Loading check-in…', 'ok');
-          scanActive = false;
-          setTimeout(() => { stopScan(); showScreen('screen2'); }, 800);
-        } else if (err && !(err instanceof ZXing.NotFoundException)) {
-          console.warn('Scan error:', err);
-        }
-      });
-    } catch (err) {
-      setStatus('❌ Could not start scanner. Use the button below.', 'error');
-      showProceedBtn();
-    }
-  }
-
-  function stopScan() {
-    scanActive = false;
-    if (codeReader) {
-      try { codeReader.reset(); } catch(e) {}
-      codeReader = null;
-    }
-    const video = document.getElementById('qr-video');
-    if (video && video.srcObject) {
-      video.srcObject.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-    }
-  }
-
-  function stopScanAndGoBack() {
-    stopScan();
-    showScreen('screen1');
-  }
-
-  // ── Check-in flow ──
-  function ucfYes() { currentMember.isUCF = true;  showScreen('screen3'); }
-  function ucfNo()  { currentMember.isUCF = false; showScreen('screen3'); }
-
-  function checkIfAlreadySignedIn() {
-    const name = document.getElementById('name').value.trim();
-    if (!name) { alert("Please enter your name."); return; }
-    const today = new Date().toISOString().split('T')[0];
-    const members = JSON.parse(localStorage.getItem('ucfAttendance') || '[]');
-    const alreadySigned = members.some(m =>
-      m.name.toLowerCase() === name.toLowerCase() && m.date === today
-    );
-    if (alreadySigned) {
-      showScreen('already-signed');
-    } else {
-      currentMember.name = name;
-      currentMember.date = today;
-      showScreen('screen4');
-    }
-  }
-
-  function nextToNID() {
-    const yearRadio = document.querySelector('input[name="year"]:checked');
-    if (!yearRadio) { alert("Please select your year."); return; }
-    currentMember.year = yearRadio.value;
-    showScreen('screen5');
-  }
-
-  function submitCheckin() {
-    const nid = document.getElementById('nid').value.trim();
-    if (!nid) { alert("Please enter your NID or password."); return; }
-    currentMember.nid = nid;
-    currentMember.timestamp = new Date().toLocaleString();
-    let members = JSON.parse(localStorage.getItem('ucfAttendance') || '[]');
-    members.push(currentMember);
-    localStorage.setItem('ucfAttendance', JSON.stringify(members));
-    showScreen('success');
-  }
-
-  // ── Admin ──
-  function showAdminLogin() { showScreen('admin-login'); }
-
-  function checkAdminPassword() {
-    if (document.getElementById('admin-pass').value === ADMIN_PASSWORD) {
-      showScreen('admin-dashboard');
-      renderStats();
-      generateQR();
-    } else {
-      alert("Incorrect password.");
-    }
-  }
-
-  function renderStats() {
-    const members = JSON.parse(localStorage.getItem('ucfAttendance') || '[]');
-    const total = members.length;
-    const byYear = { Freshman: 0, Sophomore: 0, Junior: 0, Senior: 0 };
-    let ucfCount = 0, nonUCFCount = 0;
-    members.forEach(m => {
-      if (m.year && byYear[m.year] !== undefined) byYear[m.year]++;
-      if (m.isUCF === true) ucfCount++; else nonUCFCount++;
-    });
-    let html = `
-      <div class="stat-box full"><strong>${total}</strong><span>Total Attended</span></div>
-      <div class="stat-box"><strong>${ucfCount}</strong><span>UCF Students</span></div>
-      <div class="stat-box"><strong>${nonUCFCount}</strong><span>Non-UCF</span></div>
-    `;
-    Object.keys(byYear).forEach(year => {
-      html += `<div class="stat-box"><strong>${byYear[year]}</strong><span>${year}</span></div>`;
-    });
-    document.getElementById('stats').innerHTML = html;
-  }
-
-  function generateQR() {
-    // Generate new PIN
-    currentPIN = generatePIN();
-    localStorage.setItem('radarsPIN', currentPIN);
-    document.getElementById('admin-pin-display').textContent = currentPIN;
-
-    const url = window.location.href.split('#')[0];
-    document.getElementById('qr-url-text').textContent = url;
-
-    const container = document.getElementById('qr-output');
-    container.innerHTML = '';
-
-    if (typeof QRCode !== 'undefined') {
-      new QRCode(container, {
-        text: url,
-        width: 168, height: 168,
-        colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    } else {
-      const img = document.createElement('img');
-      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=${encodeURIComponent(url)}`;
-      img.style.cssText = 'width:168px;height:168px;';
-      container.appendChild(img);
-    }
-  }
-
-  function clearData() {
-    if (confirm("Delete ALL attendance data? This cannot be undone.")) {
-      localStorage.removeItem('ucfAttendance');
-      renderStats();
-    }
-  }
-
-  function restart() {
-    stopScan();
-    currentMember = {};
-    document.getElementById('name').value = '';
-    document.getElementById('nid').value = '';
-    document.getElementById('admin-pass').value = '';
-    document.querySelectorAll('input[name="year"]').forEach(r => r.checked = false);
-    showScreen('screen1');
-  }
-
-  window.onload = () => {
-    // Restore PIN if admin already generated one this session
-    const saved = localStorage.getItem('radarsPIN');
-    if (saved) currentPIN = saved;
-    initPINInputs();
-    showScreen('screen1');
+  const firebaseConfig = {
+    apiKey: "AIzaSyAP585SJ76RFTjqJK-rIVeQ5-3lcqH8JaE",
+    authDomain: "radars-ucf-club-checkin.firebaseapp.com",
+    projectId: "radars-ucf-club-checkin",
+    storageBucket: "radars-ucf-club-checkin.firebasestorage.app",
+    messagingSenderId: "80735166959",
+    appId: "1:80735166999:web:96dffb85eb60921112161a"
   };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db = getFirestore(fbApp);
+  let prevCount = 0;
+
+  // Real-time checkins
+  const q = query(collection(db, 'radars_checkins'), orderBy('timestamp', 'desc'));
+  onSnapshot(q, (snap) => {
+    window._fbMembers = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    if (window._fbMembers.length > prevCount && prevCount > 0) showSyncToast();
+    prevCount = window._fbMembers.length;
+    if (window._dashOpen) { dRenderDash(window._fbMembers); dRenderTable(window._fbMembers); }
+  });
+
+  // Real-time PIN sync
+  onSnapshot(collection(db, 'radars_config'), (snap) => {
+    snap.docs.forEach(d => {
+      if (d.id === 'session' && d.data().pin) {
+        window._currentPIN = d.data().pin;
+        ['dash-pin-display','dlive-pin-display'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = d.data().pin;
+        });
+      }
+    });
+  });
+
+  window.fbSaveCheckin = async (m) => {
+    try {
+      await addDoc(collection(db, 'radars_checkins'), {
+        name: m.name||'', nid: m.nid||'', year: m.year||'', isUCF: m.isUCF||false,
+        timestamp: new Date().toISOString(),
+        displayTime: new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+        date: new Date().toISOString().split('T')[0],
+      });
+      return true;
+    } catch(e) { console.error(e); return false; }
+  };
+
+  window.fbSavePIN = async (pin) => {
+    try { await setDoc(doc(db,'radars_config','session'),{pin,updatedAt:new Date().toISOString()}); }
+    catch(e) { console.error(e); }
+  };
+
+  window.fbClearAll = async () => {
+    try {
+      const snap = await getDocs(collection(db,'radars_checkins'));
+      for (const d of snap.docs) await deleteDoc(doc(db,'radars_checkins',d.id));
+    } catch(e) { console.error(e); }
+  };
+
+  window.fbGetMembers = () => window._fbMembers || [];
+
+  function showSyncToast() {
+    const t = document.getElementById('sync-toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+
+<script>
+const ADMIN_PASSWORD = 'pass';
+let currentMember = {};
+let codeReader = null;
+let scanActive = false;
+window._currentPIN = '';
+window._dashOpen = false;
+window._fbMembers = [];
+
+// ── SCREEN NAV ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  el.classList.add('active');
+  el.style.animation='none'; el.offsetHeight; el.style.animation='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── DASHBOARD TOGGLE ──
+function enterDashboard() {
+  window._dashOpen = true;
+  document.getElementById('checkin-wrap').style.display = 'none';
+  document.getElementById('dashboard-wrap').classList.add('active');
+  document.getElementById('ci-nav-right').style.display = 'none';
+  document.getElementById('dash-nav-tabs').style.display = 'flex';
+  document.getElementById('dash-nav-right').style.display = 'flex';
+  document.querySelector('.footer-label').style.display = 'none';
+  showDPage('ddash', document.querySelector('[data-dp="ddash"]'));
+  dRenderDash(window._fbMembers);
+  dSyncLiveQR();
+}
+
+function exitDashboard() {
+  window._dashOpen = false;
+  document.getElementById('checkin-wrap').style.display = 'flex';
+  document.getElementById('dashboard-wrap').classList.remove('active');
+  document.getElementById('ci-nav-right').style.display = 'flex';
+  document.getElementById('dash-nav-tabs').style.display = 'none';
+  document.getElementById('dash-nav-right').style.display = 'none';
+  document.querySelector('.footer-label').style.display = 'block';
+  restart();
+}
+
+function showDPage(id, btn) {
+  document.querySelectorAll('.dpage').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  const m = window._fbMembers || [];
+  if (id==='dattendance') { dRenderTable(m); dSyncLiveQR(); }
+  if (id==='ddash') dRenderDash(m);
+}
+
+// ── DASHBOARD RENDER ──
+function dRenderDash(members) {
+  if (!members) members=[];
+  const ucf = members.filter(m=>m.isUCF).length;
+  document.getElementById('d-total').textContent = members.length;
+  document.getElementById('d-ucf').textContent = ucf;
+  document.getElementById('d-nonucf').textContent = members.length - ucf;
+  const by = {Freshman:0,Sophomore:0,Junior:0,Senior:0};
+  members.forEach(m => { if(by[m.year]!==undefined) by[m.year]++; });
+  document.getElementById('d-year-grid').innerHTML = Object.entries(by).map(([y,c]) =>
+    `<div class="dstat"><div class="dstat-num">${c}</div><div class="dstat-label">${y}</div></div>`
+  ).join('');
+}
+
+function dRenderTable(members) {
+  if (!members) members=[];
+  const ucf = members.filter(m=>m.isUCF).length;
+  const fresh = members.filter(m=>m.year==='Freshman').length;
+  const soph = members.filter(m=>m.year==='Sophomore').length;
+  const upper = members.filter(m=>m.year==='Junior'||m.year==='Senior').length;
+  document.getElementById('d-att-total').textContent = members.length;
+  document.getElementById('d-att-ucf').textContent = ucf;
+  document.getElementById('d-att-fresh').textContent = fresh;
+  document.getElementById('d-att-soph').textContent = soph;
+  document.getElementById('d-att-upper').textContent = upper;
+  if (members.length > 0) {
+    const last = members[0];
+    document.getElementById('d-last-name').textContent = last.name||'—';
+    document.getElementById('d-last-meta').textContent = `${last.nid||''} · ${last.year||''} · ${last.displayTime||''}`;
+  }
+  const body = document.getElementById('d-att-body');
+  if (!members.length) { body.innerHTML='<div class="dempty">No check-ins yet. Share the QR code or PIN!</div>'; return; }
+  body.innerHTML = members.map(m => {
+    const init = (m.name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="datt-row">
+      <div class="datt-person"><div class="datt-avatar">${init}</div><div class="datt-name">${m.name||'—'}</div></div>
+      <div class="datt-mono">${m.nid||'—'}</div>
+      <div class="datt-cell">${m.year||'—'}</div>
+      <div><span class="dtype-badge ${m.isUCF?'dtype-ucf':'dtype-guest'}">${m.isUCF?'UCF':'Guest'}</span></div>
+      <div class="datt-mono">${m.displayTime||'—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function dFilter(q) {
+  const filtered = (window._fbMembers||[]).filter(m =>
+    (m.name||'').toLowerCase().includes(q.toLowerCase()) ||
+    (m.nid||'').toLowerCase().includes(q.toLowerCase())
+  );
+  dRenderTable(filtered);
+}
+
+function dGenerateQR() {
+  const pin = generatePIN();
+  window._currentPIN = pin;
+  document.getElementById('dash-pin-display').textContent = pin;
+  document.getElementById('dlive-pin-display').textContent = pin;
+  if (window.fbSavePIN) window.fbSavePIN(pin);
+  const url = window.location.href.split('?')[0].split('#')[0];
+  const container = document.getElementById('dash-qr-output');
+  container.innerHTML = '';
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(container, {text:url, width:164, height:164, colorDark:'#FFD700', colorLight:'#111111', correctLevel:QRCode.CorrectLevel.H});
+  } else {
+    const img = document.createElement('img');
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=164x164&bgcolor=111111&color=FFD700&margin=8&data=${encodeURIComponent(url)}`;
+    img.style.cssText='width:164px;height:164px;border-radius:8px';
+    container.appendChild(img);
+  }
+  dSyncLiveQR();
+}
+
+function dSyncLiveQR() {
+  const pin = window._currentPIN;
+  if (pin) {
+    document.getElementById('dlive-pin-display').textContent = pin;
+    document.getElementById('dash-pin-display').textContent = pin;
+  }
+  const url = window.location.href.split('?')[0].split('#')[0];
+  const img = document.getElementById('dlive-qr-img');
+  const ph = document.getElementById('dlive-placeholder');
+  if (img) {
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=164x164&bgcolor=111111&color=FFD700&margin=8&data=${encodeURIComponent(url)}`;
+    img.style.display='block';
+  }
+  if (ph) ph.style.display='none';
+}
+
+function dExportCSV() {
+  const m = window._fbMembers||[];
+  if (!m.length) { alert('No attendance data to export.'); return; }
+  const rows=['#,Name,NID,Year,UCF,Time,Date',...m.map((r,i)=>`${i+1},"${r.name||''}","${r.nid||''}","${r.year||''}","${r.isUCF?'Yes':'No'}","${r.displayTime||''}","${r.date||''}"`)];
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='radars_attendance.csv'; a.click();
+}
+
+function dClearData() {
+  if (!confirm('Delete ALL attendance data? This cannot be undone.')) return;
+  if (window.fbClearAll) window.fbClearAll();
+}
+
+// ── PIN ──
+function generatePIN() {
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:5},()=>c[Math.floor(Math.random()*c.length)]).join('');
+}
+
+function initPINInputs() {
+  const digits=[...document.querySelectorAll('.pin-digit')];
+  digits.forEach((input,i)=>{
+    input.addEventListener('input',()=>{
+      input.value=input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(-1);
+      if(input.value){input.classList.add('filled');if(i<digits.length-1)digits[i+1].focus();}
+      else input.classList.remove('filled');
+    });
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Backspace'&&!input.value&&i>0){digits[i-1].value='';digits[i-1].classList.remove('filled');digits[i-1].focus();}
+      if(e.key==='Enter')submitPIN();
+    });
+  });
+}
+
+function submitPIN() {
+  const digits=[...document.querySelectorAll('.pin-digit')];
+  const entered=digits.map(d=>d.value.toUpperCase()).join('');
+  if(entered.length<5){document.getElementById('pin-error').textContent='Please fill all 5 characters.';return;}
+  if(!window._currentPIN){document.getElementById('pin-error').textContent='No PIN set by admin yet.';return;}
+  if(entered===window._currentPIN){document.getElementById('pin-error').textContent='';showScreen('screen2');}
+  else{document.getElementById('pin-error').textContent='❌ Incorrect PIN. Try again.';digits.forEach(d=>{d.value='';d.classList.remove('filled');});digits[0].focus();}
+}
+
+// ── SCANNER ──
+function startScan() {
+  showScreen('screen-scan');
+  document.getElementById('proceed-btn').style.display='none';
+  setStatus('Requesting camera permission…','');
+  requestCameraAndScan();
+}
+function setStatus(msg,type){const el=document.getElementById('scan-status');el.textContent=msg;el.className='scan-status'+(type?' '+type:'');}
+function showProceedBtn(){document.getElementById('proceed-btn').style.display='block';}
+function proceedManually(){
+  stopScan();
+  document.querySelectorAll('.pin-digit').forEach(i=>{i.value='';i.classList.remove('filled');});
+  document.getElementById('pin-error').textContent='';
+  showScreen('screen-pin');
+  setTimeout(()=>document.querySelectorAll('.pin-digit')[0].focus(),200);
+}
+async function requestCameraAndScan(){
+  if(!window.isSecureContext){setStatus('⚠️ Camera requires HTTPS. Use PIN.','error');showProceedBtn();return;}
+  if(!navigator.mediaDevices?.getUserMedia){setStatus('⚠️ Camera not supported. Use PIN.','error');showProceedBtn();return;}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});}
+  catch(err){setStatus('❌ Camera denied. Use PIN below.','error');showProceedBtn();return;}
+  stream.getTracks().forEach(t=>t.stop());
+  if(typeof ZXing==='undefined'){setStatus('⚠️ Scanner unavailable. Use PIN.','error');showProceedBtn();return;}
+  scanActive=true; setStatus('📷 Camera active — point at the QR code.','');
+  try{
+    const hints=new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.QR_CODE]);
+    codeReader=new ZXing.BrowserQRCodeReader(hints);
+    const devices=await codeReader.listVideoInputDevices();
+    let deviceId;
+    if(devices?.length){const back=devices.find(d=>/back|rear|environment/i.test(d.label));deviceId=back?back.deviceId:devices[devices.length-1].deviceId;}
+    await codeReader.decodeFromVideoDevice(deviceId,'qr-video',(result,err)=>{
+      if(!scanActive)return;
+      if(result?.getText()){setStatus('✅ Scanned!','ok');scanActive=false;setTimeout(()=>{stopScan();showScreen('screen2');},800);}
+      else if(err&&!(err instanceof ZXing.NotFoundException))console.warn(err);
+    });
+  }catch(err){setStatus('❌ Scanner error. Use PIN.','error');showProceedBtn();}
+}
+function stopScan(){
+  scanActive=false;
+  if(codeReader){try{codeReader.reset();}catch(e){}codeReader=null;}
+  const v=document.getElementById('qr-video');
+  if(v?.srcObject){v.srcObject.getTracks().forEach(t=>t.stop());v.srcObject=null;}
+}
+function stopScanAndGoBack(){stopScan();showScreen('screen1');}
+
+// ── CHECK-IN FLOW ──
+function ucfYes(){currentMember.isUCF=true;showScreen('screen3');}
+function ucfNo() {currentMember.isUCF=false;showScreen('screen3');}
+
+function checkAlreadySigned(){
+  const name=document.getElementById('name').value.trim();
+  if(!name){alert('Please enter your name.');return;}
+  const today=new Date().toISOString().split('T')[0];
+  const already=(window._fbMembers||[]).some(m=>m.name?.toLowerCase()===name.toLowerCase()&&m.date===today);
+  if(already){showScreen('already-signed');return;}
+  currentMember.name=name; currentMember.date=today; showScreen('screen4');
+}
+function nextToNID(){
+  const yr=document.querySelector('input[name="year"]:checked');
+  if(!yr){alert('Please select your year.');return;}
+  currentMember.year=yr.value; showScreen('screen5');
+}
+async function submitCheckin(){
+  const nid=document.getElementById('nid').value.trim();
+  if(!nid){alert('Please enter your NID.');return;}
+  currentMember.nid=nid;
+  const saved=await window.fbSaveCheckin(currentMember);
+  if(saved)showScreen('success');
+  else alert('Could not save check-in. Please try again.');
+}
+
+// ── ADMIN ──
+function showAdminLogin(){showScreen('admin-login');}
+function checkAdminPassword(){
+  if(document.getElementById('admin-pass').value===ADMIN_PASSWORD)enterDashboard();
+  else alert('Incorrect password.');
+}
+function restart(){
+  stopScan(); currentMember={};
+  document.getElementById('name').value='';
+  document.getElementById('nid').value='';
+  document.getElementById('admin-pass').value='';
+  document.querySelectorAll('input[name="year"]').forEach(r=>r.checked=false);
+  showScreen('screen1');
+}
+
+window.onload=()=>{initPINInputs();showScreen('screen1');dSyncLiveQR();};
 </script>
 </body>
 </html>
